@@ -1,3 +1,94 @@
-from django.shortcuts import render
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.template.response import TemplateResponse
+from django.views.generic import DetailView, TemplateView
 
-# Create your views here.
+from .models import Category, Product, Size
+
+
+class IndexView(TemplateView):
+    template_name = "main/index.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["products"] = Product.objects.all()
+        context["current_categories"] = None
+        return context
+
+    def get(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
+        if request.headers.get("HX-Request"):
+            return TemplateResponse(request, "main/home_content.html", context)
+        return TemplateResponse(request, self.template_name, context)
+
+
+class CatalogView(TemplateView):
+    template_name = "main/catalog.html"
+
+    FILTER_MAPPING = {
+        "color": lambda queryset, value: queryset.filter(color_iexat=value),
+        "min_price": lambda queryset, value: queryset.filter(price__gte=value),
+        "max_price": lambda queryset, value: queryset.filter(price__lte=value),
+        "size": lambda queryset, value: queryset.filter(product_size__size__name=value),
+    }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        category_clug = kwargs.get("category_clug")
+        categories = Category.objects.all()
+        products = Product.objects.all().order_by("-created_at")
+        current_category = None
+        if category_clug:
+            current_category = get_object_or_404(Category, slug=category_clug)
+            products = products.filter(category=current_category)
+
+        query = self.request.GET.get("q")
+        if query:
+            products = products.filter(
+                Q(name__icontains=query) | Q(description__icontains=query)
+            )
+
+        filter_params = {}
+        for param, filter_func in self.FILTER_MAPPING.items():
+            value = self.request.GET.get(param)
+            if value:
+                products = filter_func(products, value)
+                filter_params[param] = value
+            else:
+                filter_params[param] = ""
+
+        filter_params["q"] = query or ""
+
+        context.update(
+            {
+                "categories": categories,
+                "products": products,
+                "current_category": current_category,
+                "filter_params": filter_params,
+                "sizes": Size.objects.all(),
+                "search_query": query or "",
+            }
+        )
+
+        if self.request.GET.get("show_search") == "true":
+            context["show_search"] = True
+        elif self.request.GET.get("reset") == "true":
+            context["reset_search"] = True
+
+        return context
+
+    def get(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
+        if request.headers.get("HX-Request"):
+            if context.get("show_search"):
+                return TemplateResponse(request, "main/search_input.html", context)
+            elif context.get("reset_search"):
+                return TemplateResponse(request, "main/search_button.html", {})
+            template = (
+                "main/filter_modal.html"
+                if request.GET.get("show_filters") == "true"
+                else "main/cotalog.html"
+            )
+            return TemplateResponse(request, template, context)
+        return TemplateResponse(request, self.template_name, context)
