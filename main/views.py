@@ -8,12 +8,12 @@ from .models import Category, Product, Size
 
 
 class IndexView(TemplateView):
-    template_name = "main/index.html"
+    template_name = "main/base.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["products"] = Product.objects.all()
-        context["current_categories"] = None
+        context["categories"] = Category.objects.all()
+        context["current_category"] = None
         return context
 
     def get(self, request, *args, **kwargs):
@@ -24,23 +24,24 @@ class IndexView(TemplateView):
 
 
 class CatalogView(TemplateView):
-    template_name = "main/catalog.html"
+    template = "main/base.html"
 
     FILTER_MAPPING = {
-        "color": lambda queryset, value: queryset.filter(color_iexat=value),
-        "min_price": lambda queryset, value: queryset.filter(price__gte=value),
-        "max_price": lambda queryset, value: queryset.filter(price__lte=value),
+        "color": lambda queryset, value: queryset.filter(color__iexact=value),
+        "min_price": lambda queryset, value: queryset.filter(price_gte=value),
+        "max_price": lambda queryset, value: queryset.filter(price_lte=value),
         "size": lambda queryset, value: queryset.filter(product_size__size__name=value),
     }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        category_clug = kwargs.get("category_clug")
+        category_slug = kwargs.get("category_slug")
         categories = Category.objects.all()
         products = Product.objects.all().order_by("-created_at")
         current_category = None
-        if category_clug:
-            current_category = get_object_or_404(Category, slug=category_clug)
+
+        if category_slug:
+            current_category = get_object_or_404(Category, slug=category_slug)
             products = products.filter(category=current_category)
 
         query = self.request.GET.get("q")
@@ -64,7 +65,7 @@ class CatalogView(TemplateView):
             {
                 "categories": categories,
                 "products": products,
-                "current_category": current_category,
+                "current_category": category_slug,
                 "filter_params": filter_params,
                 "sizes": Size.objects.all(),
                 "search_query": query or "",
@@ -73,7 +74,7 @@ class CatalogView(TemplateView):
 
         if self.request.GET.get("show_search") == "true":
             context["show_search"] = True
-        elif self.request.GET.get("reset") == "true":
+        elif self.request.GET.get("reset_search") == "true":
             context["reset_search"] = True
 
         return context
@@ -88,7 +89,7 @@ class CatalogView(TemplateView):
             template = (
                 "main/filter_modal.html"
                 if request.GET.get("show_filters") == "true"
-                else "main/cotalog.html"
+                else "main/catalog.html"
             )
             return TemplateResponse(request, template, context)
         return TemplateResponse(request, self.template_name, context)
@@ -103,7 +104,7 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         product = self.get_object()
-        context["categories"] = Category.objects.filters()
+        context["categories"] = Category.objects.all()
         context["related_products"] = Product.objects.filter(
             category=product.category
         ).exclude(id=product.id)[:4]
@@ -113,6 +114,6 @@ class ProductDetailView(DetailView):
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
         context = self.get_context_data(**kwargs)
-        if request.headers.get("HX-Request"):
+        if request.header.get("HX-Request"):
             return TemplateResponse(request, "main/product_detail.html", context)
         raise TemplateResponse(request, self.template_name, context)

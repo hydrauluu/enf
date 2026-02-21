@@ -14,15 +14,15 @@ class ProductSizeInline(admin.TabularInline):
 
 
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("name", "price", "color", "category")
-    list_filter = ("category", "color")
-    search_fields = ("name", "color", "description")
+    list_display = ["name", "price", "color", "category"]
+    list_filter = ["category", "color"]
+    search_fields = ["name", "color", "description"]
     prepopulated_fields = {"slug": ("name",)}
     inlines = [ProductImageInline, ProductSizeInline]
 
 
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug")
+    list_display = ["name", "slug"]
     prepopulated_fields = {"slug": ("name",)}
 
 
