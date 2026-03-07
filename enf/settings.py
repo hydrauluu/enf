@@ -43,9 +43,7 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = []
 
-LOCAL_APPS = [
-    "main",
-]
+LOCAL_APPS = ["main", "cart"]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -139,3 +137,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+SESSIONS_COOKIE_AGE = 86400  # 30 days
+SESSIONS_SAVE_EVERY_REQUEST = True
